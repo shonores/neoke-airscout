@@ -1,6 +1,9 @@
 import type { Config, GetToken } from '../types'
 
 export function deriveNodeHost(nodeId: string): string {
+  if (nodeId.includes('.')) {
+    return nodeId
+  }
   return `${nodeId}.id-node.neoke.com`
 }
 

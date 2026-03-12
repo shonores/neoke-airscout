@@ -1,5 +1,3 @@
-// AirScout logo from Figma assets (valid ~7 days)
-const AIRSCOUT_LOGO = 'https://www.figma.com/api/mcp/asset/26b1f1e6-6451-4a27-bf2a-fcd2e7131c1a'
 
 interface Props {
   onSignOut?: () => void
@@ -11,8 +9,10 @@ export function Header({ onSignOut, showSignOut }: Props) {
     <header className="flex items-center justify-between px-6 py-3 relative z-10">
       {/* Logo */}
       <div className="flex items-center gap-2">
-        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center overflow-hidden shrink-0">
-          <img src={AIRSCOUT_LOGO} alt="AirScout logo" className="w-full h-full object-contain" />
+        <div className="w-10 h-10 rounded-full bg-[#3f54cc] flex items-center justify-center overflow-hidden shrink-0">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+          </svg>
         </div>
         <span className="font-extrabold text-[14px] text-[#28272e]">AirScout</span>
       </div>
