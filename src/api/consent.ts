@@ -24,7 +24,7 @@ export async function pollQueueItem(
   itemId: string,
 ): Promise<{ item?: QueueItem; error?: string }> {
   try {
-    const res = await fetch(`${ceUrl}/queue/${itemId}`, { cache: 'no-store' })
+    const res = await fetch(`${ceUrl}/queue/${itemId}/status`, { cache: 'no-store' })
     const raw = await res.text()
     if (!res.ok) return { error: `HTTP ${res.status}` }
     return { item: JSON.parse(raw) as QueueItem }
