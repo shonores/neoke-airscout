@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+*.tsbuildinfo
+
+# Reference-only folders — not part of the deployable project
+neoke-consent-engine copy/
+neoke-cw-consent copy/
+neoke-test-verifier copy/
+Page PRD.pdf
