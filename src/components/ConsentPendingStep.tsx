@@ -64,7 +64,7 @@ export function ConsentPendingStep({
           return
         }
 
-        if (item.status === 'rejected' || item.status === 'expired') {
+        if (item.status === 'rejected' || item.status === 'expired' || item.status === 'error') {
           stoppedRef.current = true
           clearInterval(interval)
           onRejected(`Request was ${item.status} in the wallet`)

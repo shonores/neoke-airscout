@@ -47,11 +47,9 @@ export function ceOutcome(r: ConsentResponse): string {
 
 export interface QueueItem {
   id: string
-  status: 'pending' | 'approved' | 'rejected' | 'expired'
-  issuer?: string
-  credentialTypes?: string[]
-  requestedClaims?: string[]
-  [key: string]: unknown
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'error'
+  resolvedAt?: string
+  vpRequestExpiresAt?: string
 }
 
 export interface CredentialClaim {
