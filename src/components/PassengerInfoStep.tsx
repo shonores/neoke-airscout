@@ -3,17 +3,47 @@ import { motion } from 'framer-motion'
 import type { PassengerData, VerifyResponse } from '../types'
 
 function extractFromClaims(claims: Record<string, unknown>): Partial<PassengerData> {
+  // Flatten nested electronicPassport object (in case it's not already flat)
   const flat: Record<string, unknown> = { ...claims }
   if (typeof claims.electronicPassport === 'object' && claims.electronicPassport) {
     Object.assign(flat, claims.electronicPassport as object)
   }
+
   const s = (v: unknown) => (v ? String(v) : '')
+
+  // holdersName is ICAO MRZ format: "SURNAME<<FIRSTNAME<MIDDLENAME<"
+  let firstName = s(flat.given_name ?? flat.givenNames ?? flat.firstName ?? flat.givenName)
+  let lastName  = s(flat.family_name ?? flat.surname ?? flat.lastName ?? flat.familyName)
+  if (!firstName && !lastName && flat.holdersName) {
+    const parts = String(flat.holdersName).split('<<')
+    lastName  = (parts[0] ?? '').replace(/<+/g, ' ').trim()
+    firstName = (parts[1] ?? '').replace(/<+/g, ' ').trim()
+  }
+
+  // birthdate can be YYMMDD (ICAO) or ISO 8601
+  let birthDate = s(flat.birth_date ?? flat.birthDate ?? flat.dateOfBirth ?? flat.date_of_birth) || undefined
+  if (!birthDate && flat.birthdate) {
+    const raw = String(flat.birthdate)
+    if (/^\d{6}$/.test(raw)) {
+      // YYMMDD: year >= 30 → 19xx, else 20xx
+      const yy = parseInt(raw.slice(0, 2), 10)
+      const mm = raw.slice(2, 4)
+      const dd = raw.slice(4, 6)
+      const yyyy = yy >= 30 ? 1900 + yy : 2000 + yy
+      birthDate = `${yyyy}-${mm}-${dd}`
+    } else {
+      birthDate = raw
+    }
+  }
+
+  const nationality = s(flat.nationality ?? flat.natlCode ?? flat.issuing_country ?? flat.issuingCountry ?? flat.issuerCode) || undefined
+
   return {
-    firstName:   s(flat.given_name   ?? flat.firstName  ?? flat.givenName),
-    lastName:    s(flat.family_name  ?? flat.lastName   ?? flat.familyName ?? flat.surname),
-    email:       s(flat.email        ?? flat.email_address ?? flat.emailAddress),
-    birthDate:   s(flat.birth_date   ?? flat.birthDate  ?? flat.date_of_birth)  || undefined,
-    nationality: s(flat.nationality  ?? flat.issuing_country ?? flat.issuingCountry) || undefined,
+    firstName,
+    lastName,
+    email:       s(flat.email ?? flat.email_address ?? flat.emailAddress),
+    birthDate,
+    nationality,
   }
 }
 
