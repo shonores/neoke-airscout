@@ -17,7 +17,12 @@ const IMG_CLOUDS = 'https://www.figma.com/api/mcp/asset/bad61330-ff62-4121-9238-
 // ConfigPanel is hidden when both are present.
 const BAKED_CE_URL = import.meta.env['VITE_AIRSCOUT_CE_URL'] ?? ''
 const BAKED_CE_API_KEY = import.meta.env['VITE_AIRSCOUT_CE_API_KEY'] ?? ''
-const BAKED_CREDENTIAL_TYPE = import.meta.env['VITE_AIRSCOUT_CREDENTIAL_TYPE'] ?? 'mdoc-photoid-full'
+// VITE_AIRSCOUT_TEMPLATE_ID takes precedence over VITE_AIRSCOUT_CREDENTIAL_TYPE.
+// Prefix "template:" signals verify() to send templateId instead of credentialType.
+const BAKED_CREDENTIAL_TYPE =
+  import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']
+    ? `template:${import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']}`
+    : (import.meta.env['VITE_AIRSCOUT_CREDENTIAL_TYPE'] ?? 'sdjwt-epassport-copy')
 const isBaked = Boolean(BAKED_CE_URL && BAKED_CE_API_KEY)
 
 const DEFAULT_CONFIG: Config = {

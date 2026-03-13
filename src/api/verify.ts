@@ -6,11 +6,17 @@ export async function verify(
   ceUrl: string,
   ceApiKey: string,
   email: string,
-  credentialType = 'mdoc-photoid-full',
+  /** Either a credentialType preset ID or a templateId (prefixed with 'template:'). */
+  credentialTypeOrTemplateId = 'mdoc-photoid-full',
 ): Promise<{ result?: VerifyResponse; error?: string }> {
   const url = `${ceUrl || DEFAULT_CE_URL}/v1/verify`
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 90_000)
+
+  const isTemplate = credentialTypeOrTemplateId.startsWith('template:')
+  const bodyPayload = isTemplate
+    ? { to: email, templateId: credentialTypeOrTemplateId.slice('template:'.length) }
+    : { to: email, credentialType: credentialTypeOrTemplateId }
 
   try {
     const res = await fetch(url, {
@@ -19,7 +25,7 @@ export async function verify(
         Authorization: `ApiKey ${ceApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ to: email, credentialType }),
+      body: JSON.stringify(bodyPayload),
       signal: controller.signal,
     })
 
