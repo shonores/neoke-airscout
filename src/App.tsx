@@ -1,33 +1,31 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import type { AppState, Config, Flight, PassengerData, SearchQuery } from './types'
+import type { AppState, Config, Flight, PassengerData, SearchQuery, VerifyResponse } from './types'
 import { verify } from './api/verify'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { SearchStep } from './components/SearchStep'
 import { FlightResultsStep } from './components/FlightResultsStep'
 import { PassengerInfoStep } from './components/PassengerInfoStep'
-import { ProcessingStep } from './components/ProcessingStep'
 import { BookingConfirmedStep } from './components/BookingConfirmedStep'
 import { CheckInStep } from './components/CheckInStep'
 import { CheckedInStep } from './components/CheckedInStep'
 import { ErrorState } from './components/ErrorState'
+import { WalletLoginModal } from './components/WalletLoginModal'
 
-// Baked-in credentials — set via Vercel env vars (VITE_ prefix exposes to browser bundle).
-const BAKED_CE_URL = import.meta.env['VITE_AIRSCOUT_CE_URL'] ?? ''
+const BAKED_CE_URL     = import.meta.env['VITE_AIRSCOUT_CE_URL']     ?? ''
 const BAKED_CE_API_KEY = import.meta.env['VITE_AIRSCOUT_CE_API_KEY'] ?? ''
-// VITE_AIRSCOUT_TEMPLATE_ID takes precedence over VITE_AIRSCOUT_CREDENTIAL_TYPE.
 const BAKED_CREDENTIAL_TYPE =
   import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']
     ? `template:${import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']}`
     : (import.meta.env['VITE_AIRSCOUT_CREDENTIAL_TYPE'] ?? 'sdjwt-epassport-copy')
 
 const DEFAULT_CONFIG: Config = {
-  ceUrl: BAKED_CE_URL || 'https://neoke-consent-engine.fly.dev',
+  ceUrl:    BAKED_CE_URL    || 'https://neoke-consent-engine.fly.dev',
   ceApiKey: BAKED_CE_API_KEY,
 }
 
-// Hero images per screen — sourced from Figma design exports
+// Hero images per screen sourced from Figma design exports
 const HERO: Record<string, { plane: string; clouds: string }> = {
   search: {
     plane:  'https://www.figma.com/api/mcp/asset/676f5340-14d5-4a11-b20a-5e35092c1f23',
@@ -51,27 +49,39 @@ function getHero(state: AppState) {
   return HERO[state] ?? HERO.search
 }
 
-/** Extract passenger fields from wallet claims — handles flat and nested (electronicPassport) shapes. */
 function extractPassengerFromClaims(claims: Record<string, unknown>): Partial<PassengerData> {
   const flat: Record<string, unknown> = { ...claims }
   if (typeof claims.electronicPassport === 'object' && claims.electronicPassport) {
     Object.assign(flat, claims.electronicPassport as object)
   }
+  const s = (v: unknown) => (v ? String(v) : '')
   return {
-    firstName: String(flat.given_name ?? flat.firstName ?? flat.givenName ?? ''),
-    lastName:  String(flat.family_name ?? flat.lastName ?? flat.familyName ?? flat.surname ?? ''),
-    email:     String(flat.email ?? flat.email_address ?? flat.emailAddress ?? ''),
-    birthDate: String(flat.birth_date ?? flat.birthDate ?? flat.date_of_birth ?? '') || undefined,
+    firstName:   s(flat.given_name   ?? flat.firstName  ?? flat.givenName),
+    lastName:    s(flat.family_name  ?? flat.lastName   ?? flat.familyName ?? flat.surname),
+    email:       s(flat.email        ?? flat.email_address ?? flat.emailAddress),
+    birthDate:   s(flat.birth_date   ?? flat.birthDate  ?? flat.date_of_birth)  || undefined,
+    nationality: s(flat.nationality  ?? flat.issuing_country ?? flat.issuingCountry) || undefined,
   }
 }
 
 export default function App() {
   const [config] = useState<Config>(DEFAULT_CONFIG)
-  const [appState, setAppState] = useState<AppState>('search')
-  const [searchQuery, setSearchQuery] = useState<SearchQuery | null>(null)
+
+  // App state machine
+  const [appState,       setAppState]       = useState<AppState>('search')
+  const [searchQuery,    setSearchQuery]    = useState<SearchQuery | null>(null)
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
-  const [passengerData, setPassengerData] = useState<PassengerData | null>(null)
-  const [error, setError] = useState('')
+  const [passengerData,  setPassengerData]  = useState<PassengerData | null>(null)
+  const [error,          setError]          = useState('')
+
+  // Wallet login session (from header login button)
+  const [isLoggedIn,       setIsLoggedIn]       = useState(false)
+  const [walletLoginData,  setWalletLoginData]  = useState<Partial<PassengerData> | null>(null)
+  const [showLoginModal,   setShowLoginModal]   = useState(false)
+
+  // Bound verify call — reused across wallet fill, header login, and check-in
+  const runVerify = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
+    verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE)
 
   const handleReset = () => {
     setAppState('search')
@@ -79,80 +89,47 @@ export default function App() {
     setSelectedFlight(null)
     setPassengerData(null)
     setError('')
+    setIsLoggedIn(false)
+    setWalletLoginData(null)
   }
 
-  // Step 1: Search → Results
+  // --- Header wallet login ---
+  const handleHeaderLoginSuccess = (claims: Record<string, unknown>, email: string) => {
+    const extracted = extractPassengerFromClaims(claims)
+    const data: Partial<PassengerData> = { ...extracted, email: extracted.email || email }
+    setWalletLoginData(data)
+    setIsLoggedIn(true)
+    setShowLoginModal(false)
+  }
+
+  // --- Step 1: Search → Results ---
   const handleSearch = (query: SearchQuery) => {
     setSearchQuery(query)
     setAppState('results')
   }
 
-  // Step 2: Results → Passenger info
+  // --- Step 2: Flight selected → Passenger info ---
   const handleFlightSelect = (flight: Flight) => {
     setSelectedFlight(flight)
     setAppState('passenger_info')
   }
 
-  // Step 3a: Manual passenger info → Booking confirmed
+  // --- Step 3: Manual continue → Booking confirmed ---
   const handlePassengerContinue = (data: PassengerData) => {
     setPassengerData(data)
     setAppState('booking_confirmed')
   }
 
-  // Step 3b: Wallet fill — CE verify call #1 (booking)
-  const handleWalletFill = async (email: string) => {
-    if (!email.trim()) return
-    setAppState('booking_verifying')
-
-    const { result, error: err } = await verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE)
-
-    if (err || !result) {
-      setError(err ?? 'No response from consent engine')
-      setAppState('error')
-      return
-    }
-
-    if (result.action === 'auto_executed' || result.action === 'approved') {
-      const extracted = extractPassengerFromClaims(result.claims ?? {})
-      setPassengerData({
-        firstName: extracted.firstName || '',
-        lastName:  extracted.lastName  || '',
-        email:     extracted.email     || email,
-        birthDate: extracted.birthDate,
-      })
-      setAppState('booking_confirmed')
-      return
-    }
-
-    if (result.action === 'rejected') {
-      setError(`Wallet request rejected: ${result.reason ?? 'no reason given'}`)
-      setAppState('error')
-      return
-    }
-
-    if (result.action === 'timeout') {
-      setError('No response from wallet within the allowed time. Please try again.')
-      setAppState('error')
-      return
-    }
-
-    setError(`Unexpected response: ${result.action}`)
-    setAppState('error')
-  }
-
-  // Step 5: Check in now — CE verify call #2 (check-in), minimum 3s animation
+  // --- Step 4/5: Auto check-in (CE verify call #2) with 3s minimum animation ---
   const handleCheckIn = async () => {
-    const email = passengerData?.email ?? ''
+    const email = passengerData?.email ?? walletLoginData?.email ?? ''
     setAppState('checkin_verifying')
 
     const startTime = Date.now()
-    const { result, error: err } = await verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE)
+    const { result, error: err } = await runVerify(email)
 
-    // Ensure at least 3 seconds of the check-in animation plays
     const elapsed = Date.now() - startTime
-    if (elapsed < 3000) {
-      await new Promise(r => setTimeout(r, 3000 - elapsed))
-    }
+    if (elapsed < 3000) await new Promise(r => setTimeout(r, 3000 - elapsed))
 
     if (err || !result) {
       setError(err ?? 'No response from consent engine')
@@ -175,8 +152,10 @@ export default function App() {
     setAppState('error')
   }
 
-  const hero = getHero(appState)
-  const showSignOut = appState === 'booking_confirmed' || appState === 'checked_in'
+  const hero          = getHero(appState)
+  const showWalletLogin = !['booking_confirmed', 'checkin_verifying', 'checked_in'].includes(appState)
+  const showSignOut     = appState === 'booking_confirmed' || appState === 'checked_in'
+  const loggedInName    = [walletLoginData?.firstName, walletLoginData?.lastName].filter(Boolean).join(' ')
 
   return (
     <div
@@ -185,31 +164,36 @@ export default function App() {
     >
       {/* Hero images — right side, desktop only */}
       <div className="absolute right-0 top-0 w-[55%] h-full pointer-events-none select-none hidden lg:block">
-        <img
-          src={hero.clouds}
-          alt=""
-          className="absolute bottom-[20%] right-[-5%] w-[85%] object-contain opacity-90"
-        />
-        <img
-          src={hero.plane}
-          alt=""
-          className="absolute top-[10%] right-[-2%] w-[90%] object-contain drop-shadow-2xl"
-        />
+        <img src={hero.clouds} alt=""
+          className="absolute bottom-[20%] right-[-5%] w-[85%] object-contain opacity-90" />
+        <img src={hero.plane} alt=""
+          className="absolute top-[10%] right-[-2%] w-[90%] object-contain drop-shadow-2xl" />
       </div>
 
       <div className="relative z-10 min-h-screen flex flex-col">
-        <Header onSignOut={handleReset} showSignOut={showSignOut} />
+        <Header
+          showWalletLogin={showWalletLogin}
+          isLoggedIn={isLoggedIn}
+          loggedInName={loggedInName || undefined}
+          onWalletLoginClick={() => setShowLoginModal(true)}
+          onLogout={handleReset}
+          showSignOut={showSignOut}
+          onSignOut={handleReset}
+        />
 
-        <main className="flex-1 flex items-start lg:items-center px-6 pt-8 lg:pt-0 pb-16">
-          <div className="w-full flex flex-col">
+        {/* Main content — constrained to left portion on desktop, centered within that area */}
+        <main className="flex-1 flex items-start lg:items-center px-6 lg:pl-12 lg:pr-[52%] pt-8 lg:pt-0 pb-16">
+          <div className="w-full flex flex-col lg:items-center">
             <AnimatePresence mode="wait">
+
               {appState === 'search' && (
                 <SearchStep key="search" onSearch={handleSearch} />
               )}
 
-              {appState === 'results' && (
+              {appState === 'results' && searchQuery && (
                 <FlightResultsStep
                   key="results"
+                  searchQuery={searchQuery}
                   onBack={() => setAppState('search')}
                   onSelect={handleFlightSelect}
                 />
@@ -217,15 +201,12 @@ export default function App() {
 
               {appState === 'passenger_info' && (
                 <PassengerInfoStep
-                  key="passenger"
+                  key={isLoggedIn ? 'passenger-loggedin' : 'passenger'}
+                  initialData={walletLoginData ?? undefined}
                   onBack={() => setAppState('results')}
                   onContinue={handlePassengerContinue}
-                  onFillWithWallet={handleWalletFill}
+                  onRequestWalletVerify={runVerify}
                 />
-              )}
-
-              {appState === 'booking_verifying' && (
-                <ProcessingStep key="booking-verifying" />
               )}
 
               {appState === 'booking_confirmed' && selectedFlight && passengerData && (
@@ -234,7 +215,7 @@ export default function App() {
                   flight={selectedFlight}
                   passenger={passengerData}
                   travelDate={searchQuery?.date ?? ''}
-                  onCheckIn={handleCheckIn}
+                  onAutoCheckIn={handleCheckIn}
                   onReset={handleReset}
                 />
               )}
@@ -259,12 +240,22 @@ export default function App() {
                   onRetry={handleReset}
                 />
               )}
+
             </AnimatePresence>
           </div>
         </main>
 
         <Footer />
       </div>
+
+      {/* Header wallet login modal */}
+      {showLoginModal && (
+        <WalletLoginModal
+          onVerify={runVerify}
+          onSuccess={handleHeaderLoginSuccess}
+          onClose={() => setShowLoginModal(false)}
+        />
+      )}
     </div>
   )
 }

@@ -28,8 +28,9 @@ export function SearchStep({ onSearch }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="w-full"
     >
-      <div className="mb-8">
+      <div className="mb-8 max-w-[460px] mx-auto">
         <h1 className="text-[48px] sm:text-[56px] font-black text-[#28272e] leading-tight">
           Book your next<br />flight
         </h1>
@@ -40,7 +41,7 @@ export function SearchStep({ onSearch }: Props) {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] p-7 w-full max-w-[460px] flex flex-col gap-4"
+        className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.12)] p-7 w-full max-w-[460px] mx-auto flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1.5">
           <label className="text-[12px] font-bold text-[#6d6b7e] uppercase tracking-wider">From</label>

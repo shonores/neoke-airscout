@@ -28,6 +28,9 @@ const UPSELLS = [
   },
 ]
 
+// Aisle seat assignments by flight id
+const AISLE_SEATS = ['14C', '7C', '22C', '3C', '18C']
+
 interface Props {
   flight: Flight
   passenger: PassengerData
@@ -36,6 +39,7 @@ interface Props {
 
 export function CheckedInStep({ flight, passenger, onReset }: Props) {
   const fullName = [passenger.firstName, passenger.lastName].filter(Boolean).join(' ') || 'Passenger'
+  const seat = AISLE_SEATS[(parseInt(flight.id, 10) - 1) % AISLE_SEATS.length]
 
   return (
     <motion.div
@@ -54,30 +58,42 @@ export function CheckedInStep({ flight, passenger, onReset }: Props) {
         </div>
 
         <h2 className="text-[30px] font-black text-[#28272e] mb-2">You're checked in!</h2>
-        <p className="text-[15px] text-[#6d6b7e] leading-relaxed mb-6">
-          Welcome aboard, <strong className="text-[#28272e]">{fullName}</strong>.<br />
-          Your boarding pass is ready. Have a great flight!
+        <p className="text-[15px] text-[#6d6b7e] leading-relaxed mb-5">
+          Welcome aboard, <strong className="text-[#28272e]">{fullName}</strong>.
         </p>
 
         {/* Mini boarding pass */}
-        <div className="w-full bg-[#f7f8ff] rounded-2xl px-6 py-5">
-          <div className="flex items-center justify-between">
+        <div className="w-full bg-[#f7f8ff] rounded-2xl px-6 py-5 mb-4">
+          <div className="flex items-center justify-between mb-4">
             <div className="text-center">
               <p className="text-[11px] font-bold text-[#6d6b7e] uppercase tracking-wider mb-1">From</p>
-              <p className="text-[28px] font-black text-[#28272e]">{flight.fromCode}</p>
+              <p className="text-[26px] font-black text-[#28272e]">{flight.fromCode}</p>
               <p className="text-[13px] text-[#6d6b7e]">{flight.departTime}</p>
             </div>
             <div className="flex flex-col items-center gap-1 px-2">
-              <svg width="56" height="20" viewBox="0 0 56 20" fill="none">
-                <line x1="0" y1="10" x2="42" y2="10" stroke="#3f54cc" strokeWidth={1.5} strokeDasharray="4 3" />
-                <path d="M42 6l10 4-10 4" fill="none" stroke="#3f54cc" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="52" height="18" viewBox="0 0 52 18" fill="none">
+                <line x1="0" y1="9" x2="38" y2="9" stroke="#3f54cc" strokeWidth={1.5} strokeDasharray="4 3" />
+                <path d="M38 5l10 4-10 4" fill="none" stroke="#3f54cc" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <span className="text-[11px] text-[#9ca3af] font-medium">{flight.duration}</span>
             </div>
             <div className="text-center">
               <p className="text-[11px] font-bold text-[#6d6b7e] uppercase tracking-wider mb-1">To</p>
-              <p className="text-[28px] font-black text-[#28272e]">{flight.toCode}</p>
+              <p className="text-[26px] font-black text-[#28272e]">{flight.toCode}</p>
               <p className="text-[13px] text-[#6d6b7e]">{flight.arrivalTime}</p>
+            </div>
+          </div>
+
+          {/* Seat assignment */}
+          <div className="border-t border-[#eceaf2] pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-[#6d6b7e] uppercase tracking-wider">Seat</p>
+              <p className="text-[22px] font-black text-[#28272e]">{seat}</p>
+            </div>
+            <div className="text-right max-w-[200px]">
+              <p className="text-[11px] font-bold text-[#6d6b7e] uppercase tracking-wider mb-0.5">Type</p>
+              <p className="text-[13px] font-semibold text-[#3f54cc]">Aisle</p>
+              <p className="text-[11px] text-[#9ca3af] leading-snug mt-0.5">Selected based on your travel preferences from your wallet</p>
             </div>
           </div>
         </div>
@@ -99,7 +115,8 @@ export function CheckedInStep({ flight, passenger, onReset }: Props) {
           </div>
           <button
             style={{ backgroundColor: u.color }}
-            className="shrink-0 text-white text-[13px] font-bold px-4 py-2 rounded-full hover:opacity-90 active:opacity-80 transition-opacity whitespace-nowrap"
+            className="shrink-0 text-white text-[13px] font-bold px-4 py-2 rounded-full
+                       hover:opacity-90 active:opacity-80 transition-opacity whitespace-nowrap"
           >
             {u.cta}
           </button>

@@ -2,7 +2,6 @@ export type AppState =
   | 'search'
   | 'results'
   | 'passenger_info'
-  | 'booking_verifying'
   | 'booking_confirmed'
   | 'checkin_verifying'
   | 'checked_in'
@@ -39,6 +38,7 @@ export interface PassengerData {
   lastName: string
   email: string
   birthDate?: string
+  nationality?: string
 }
 
 export interface SearchQuery {
