@@ -1,15 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import type { AppState, Config, ConsentResponse } from './types'
-import { ceOutcome } from './types'
-import { createGetToken, clearTokenCache } from './api/auth'
-import { createPhotoIdRequest, pollSessionResult } from './api/vpRequest'
-import { sendToWallet } from './api/consent'
+import type { AppState, Config } from './types'
+import { verify } from './api/verify'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { EmailStep } from './components/EmailStep'
 import { ProcessingStep } from './components/ProcessingStep'
-import { ConsentPendingStep } from './components/ConsentPendingStep'
 import { PassengerProfile } from './components/PassengerProfile'
 import { ErrorState } from './components/ErrorState'
 
@@ -17,13 +13,15 @@ import { ErrorState } from './components/ErrorState'
 const IMG_PLANE = 'https://www.figma.com/api/mcp/asset/4dede6d6-9dfd-4b67-9707-0532c5ed5c53'
 const IMG_CLOUDS = 'https://www.figma.com/api/mcp/asset/bad61330-ff62-4121-9238-ee64c53088f7'
 
-// AirScout verifier credentials — set via Vercel env vars (VITE_ prefix exposes
-// them to the browser bundle). The ConfigPanel lets you override at runtime.
+// Baked-in credentials — set via Vercel env vars (VITE_ prefix exposes to browser bundle).
+// ConfigPanel is hidden when both are present.
+const BAKED_CE_URL = import.meta.env['VITE_AIRSCOUT_CE_URL'] ?? ''
+const BAKED_CE_API_KEY = import.meta.env['VITE_AIRSCOUT_CE_API_KEY'] ?? ''
+const isBaked = Boolean(BAKED_CE_URL && BAKED_CE_API_KEY)
+
 const DEFAULT_CONFIG: Config = {
-  nodeId: import.meta.env['VITE_AIRSCOUT_NODE_ID'] ?? '',
-  apiKey: import.meta.env['VITE_AIRSCOUT_API_KEY'] ?? '',
-  ceUrl: import.meta.env['VITE_AIRSCOUT_CE_URL'] ?? 'https://neoke-consent-engine.fly.dev',
-  demoDid: '',
+  ceUrl: BAKED_CE_URL || 'https://neoke-consent-engine.fly.dev',
+  ceApiKey: BAKED_CE_API_KEY,
 }
 
 export default function App() {
@@ -31,148 +29,54 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('home')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
-
-  // Pending consent state
-  const [queueItemId, setQueueItemId] = useState('')
-  const [sessionId, setSessionId] = useState('')
-
-  // Success state
-  const [credentialData, setCredentialData] = useState<unknown>(null)
-
-  const getToken = useCallback(() => createGetToken(config)(), [config])
+  const [credentialData, setCredentialData] = useState<Record<string, unknown> | null>(null)
 
   const handleSubmit = async (submittedEmail: string) => {
     setEmail(submittedEmail)
     setError('')
+    setAppState('verifying')
 
-    // ── Step 1: Discover DID from email ──────────────────────────────────────
-    setAppState('discovering')
-
-    let did: string
-    if (config.demoDid.trim()) {
-      // Demo override: skip network lookup
-      did = config.demoDid.trim()
-    } else {
-      try {
-        const res = await fetch('/api/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: submittedEmail }),
-        })
-        const body = await res.json() as { did?: string; error?: string }
-        if (!res.ok || !body.did) {
-          setError(body.error ?? 'No wallet found for this email address. Use the "Test Wallet DID" override in settings to test.')
-          setAppState('error')
-          return
-        }
-        did = body.did
-      } catch (e) {
-        setError(`Discovery request failed: ${String(e)}`)
-        setAppState('error')
-        return
-      }
-    }
-
-    // ── Step 2: Create VP request on the node ───────────────────────────────
-    setAppState('requesting')
-
-    const callbackUrl = `${window.location.origin}/api/callback`
-    const { result: vpResult, error: vpError } = await createPhotoIdRequest(
-      config.nodeId,
-      getToken,
-      callbackUrl,
-    )
-
-    if (vpError || !vpResult?.rawLink) {
-      setError(vpError ?? 'Failed to create VP request — no rawLink returned')
-      setAppState('error')
-      return
-    }
-
-    // ── Step 3: Send rawLink to Consent Engine ───────────────────────────────
-    setAppState('sending')
-
-    const { result: ceResult, error: ceError } = await sendToWallet(
+    const { result, error: err } = await verify(
       config.ceUrl,
-      did,
-      vpResult.rawLink,
+      config.ceApiKey,
+      submittedEmail,
+      'mdoc-photoid-full',
     )
 
-    if (ceError || !ceResult) {
-      setError(ceError ?? 'Consent Engine returned no response')
+    if (err || !result) {
+      setError(err ?? 'No response from consent engine')
       setAppState('error')
       return
     }
 
-    // ── Step 4: Handle CE response ───────────────────────────────────────────
-    const outcome = ceOutcome(ceResult)
-
-    if (outcome === 'auto_executed') {
-      // Standing consent — CE immediately called /respond on the node on behalf
-      // of the wallet. Poll the session endpoint (not the CE redirectUri) until
-      // the node reports a terminal status. Auth: Bearer token from node API key.
-      if (vpResult.sessionId) {
-        const { data, error: fetchErr } = await pollSessionResult(config.nodeId, getToken, vpResult.sessionId)
-        if (fetchErr) {
-          setError(fetchErr)
-          setAppState('error')
-          return
-        }
-        setCredentialData(data)
-      } else {
-        // No sessionId — unlikely but fall back to the CE response body
-        setCredentialData(ceResult)
-      }
+    if (result.action === 'auto_executed' || result.action === 'approved') {
+      setCredentialData(result.claims ?? {})
       setAppState('success')
       return
     }
 
-    if (outcome === 'queued') {
-      const qi = ceResult.queuedItem
-      if (!qi?.id) {
-        setError('CE returned "queued" but no queuedItem.id')
-        setAppState('error')
-        return
-      }
-      setQueueItemId(qi.id)
-      setSessionId(vpResult.sessionId ?? '')
-      setAppState('pending')
-      return
-    }
-
-    if (outcome === 'rejected') {
-      const reason = ceResult.reason ?? 'rejected'
-      setError(`Request rejected by wallet: ${reason}`)
+    if (result.action === 'rejected') {
+      setError(`Request rejected by wallet: ${result.reason ?? 'no reason given'}`)
       setAppState('error')
       return
     }
 
-    // Unknown outcome — treat as error
-    setError(`Unknown CE outcome: "${outcome}"`)
+    if (result.action === 'timeout') {
+      setError('No response from wallet within the allowed time. Please try again.')
+      setAppState('error')
+      return
+    }
+
+    setError(`Unexpected response: ${result.action}`)
     setAppState('error')
   }
 
-  const handleConsentResolved = (data: unknown) => {
-    setCredentialData(data)
-    setAppState('success')
-  }
-
-  const handleConsentRejected = (reason: string) => {
-    setError(reason)
-    setAppState('error')
-  }
-
-  const handleSignOut = () => {
-    clearTokenCache()
+  const handleReset = () => {
     setAppState('home')
     setEmail('')
     setError('')
     setCredentialData(null)
-    setQueueItemId('')
-    setSessionId('')
   }
-
-  const isProcessing = appState === 'discovering' || appState === 'requesting' || appState === 'sending'
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #b4cfe8 0%, #a9c5eb 40%, #a5c1e5 100%)' }}>
@@ -192,11 +96,9 @@ export default function App() {
 
       {/* Page layout */}
       <div className="relative z-10 min-h-screen flex flex-col">
-        <Header onSignOut={handleSignOut} showSignOut={appState === 'success'} />
+        <Header onSignOut={handleReset} showSignOut={appState === 'success'} />
 
-        {/* Main content */}
         <main className="flex-1 flex items-start lg:items-center px-6 pt-8 lg:pt-0 pb-12">
-          {/* Left column: hero text + form */}
           <div className="w-full lg:max-w-[560px] flex flex-col gap-8">
             {/* Hero headline */}
             <div>
@@ -216,25 +118,12 @@ export default function App() {
                   config={config}
                   onConfigChange={setConfig}
                   onSubmit={handleSubmit}
+                  hideConfig={isBaked}
                 />
               )}
 
-              {isProcessing && (
-                <ProcessingStep key="processing" state={appState} />
-              )}
-
-              {appState === 'pending' && (
-                <ConsentPendingStep
-                  key="pending"
-                  nodeId={config.nodeId}
-                  getToken={getToken}
-                  ceUrl={config.ceUrl}
-                  queueItemId={queueItemId}
-                  sessionId={sessionId}
-                  onResolved={handleConsentResolved}
-                  onRejected={handleConsentRejected}
-                  onCancel={handleSignOut}
-                />
+              {appState === 'verifying' && (
+                <ProcessingStep key="processing" />
               )}
 
               {appState === 'success' && credentialData && (
@@ -242,7 +131,7 @@ export default function App() {
                   key="success"
                   email={email}
                   data={credentialData}
-                  onSignOut={handleSignOut}
+                  onSignOut={handleReset}
                 />
               )}
 
@@ -250,7 +139,7 @@ export default function App() {
                 <ErrorState
                   key="error"
                   message={error}
-                  onRetry={handleSignOut}
+                  onRetry={handleReset}
                 />
               )}
             </AnimatePresence>

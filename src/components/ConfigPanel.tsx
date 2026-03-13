@@ -4,15 +4,18 @@ import type { Config } from '../types'
 interface Props {
   config: Config
   onChange: (c: Config) => void
+  hidden?: boolean
 }
 
 const DEFAULT_CE_URL = 'https://neoke-consent-engine.fly.dev'
 
-export function ConfigPanel({ config, onChange }: Props) {
+export function ConfigPanel({ config, onChange, hidden = false }: Props) {
   const [open, setOpen] = useState(false)
 
   const set = (key: keyof Config, value: string) =>
     onChange({ ...config, [key]: value })
+
+  if (hidden) return null
 
   return (
     <div className="mt-4">
@@ -33,36 +36,6 @@ export function ConfigPanel({ config, onChange }: Props) {
       {open && (
         <div className="mt-3 flex flex-col gap-3 p-4 bg-[#f8f8fa] rounded-xl border border-[#d7d6dc]">
           <p className="text-[11px] font-semibold uppercase text-[#8e8e93] tracking-wide">
-            Verifier Node
-          </p>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-[13px] text-[#6d6b7e]">Node ID</span>
-            <input
-              type="text"
-              value={config.nodeId}
-              onChange={e => set('nodeId', e.target.value)}
-              placeholder="e.g. b2b-poc"
-              className="bg-white border border-[#d7d6dc] rounded-lg px-3 py-2 text-[14px] text-[#28272e]
-                         font-mono focus:outline-none focus:border-[#3f54cc] focus:ring-1 focus:ring-[#3f54cc]/20
-                         placeholder-[#c7c7cc]"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-[13px] text-[#6d6b7e]">API Key</span>
-            <input
-              type="password"
-              value={config.apiKey}
-              onChange={e => set('apiKey', e.target.value)}
-              placeholder="Node API key"
-              className="bg-white border border-[#d7d6dc] rounded-lg px-3 py-2 text-[14px] text-[#28272e]
-                         font-mono focus:outline-none focus:border-[#3f54cc] focus:ring-1 focus:ring-[#3f54cc]/20
-                         placeholder-[#c7c7cc]"
-            />
-          </label>
-
-          <p className="text-[11px] font-semibold uppercase text-[#8e8e93] tracking-wide mt-1">
             Consent Engine
           </p>
 
@@ -79,20 +52,13 @@ export function ConfigPanel({ config, onChange }: Props) {
             />
           </label>
 
-          <p className="text-[11px] font-semibold uppercase text-[#8e8e93] tracking-wide mt-1">
-            Demo Override
-          </p>
-
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] text-[#6d6b7e]">
-              Test Wallet DID{' '}
-              <span className="text-[#c7c7cc]">(bypasses email discovery)</span>
-            </span>
+            <span className="text-[13px] text-[#6d6b7e]">CE API Key</span>
             <input
-              type="text"
-              value={config.demoDid}
-              onChange={e => set('demoDid', e.target.value)}
-              placeholder="did:web:someone.id-node.neoke.com"
+              type="password"
+              value={config.ceApiKey}
+              onChange={e => set('ceApiKey', e.target.value)}
+              placeholder="CE API key"
               className="bg-white border border-[#d7d6dc] rounded-lg px-3 py-2 text-[14px] text-[#28272e]
                          font-mono focus:outline-none focus:border-[#3f54cc] focus:ring-1 focus:ring-[#3f54cc]/20
                          placeholder-[#c7c7cc]"

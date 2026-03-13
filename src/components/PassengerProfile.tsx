@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import type { SessionResult, CredentialClaim } from '../types'
 
 function formatFieldName(key: string): string {
   return key
@@ -14,35 +13,10 @@ function formatValue(v: unknown): string {
   return String(v)
 }
 
-// Extract a flat map of field → value from the session result
+// CE /v1/verify returns a flat { fieldName: value } map — use it directly.
 function extractClaims(data: unknown): Record<string, unknown> {
   if (!data || typeof data !== 'object') return {}
-  const d = data as SessionResult
-
-  // Try: { result: { credentials: [...] } }
-  const credentials = d.result?.credentials ?? d.credentials
-  if (!credentials || credentials.length === 0) return {}
-
-  const cred = credentials[0]
-  if (!cred?.nameSpaces) return {}
-
-  const claims: Record<string, unknown> = {}
-  for (const nsClaims of Object.values(cred.nameSpaces)) {
-    for (const c of nsClaims as CredentialClaim[]) {
-      claims[c.elementIdentifier] = c.elementValue
-    }
-  }
-  return claims
-}
-
-function extractValidity(data: unknown): { signatureValid?: boolean; deviceAuthVerified?: boolean } {
-  if (!data || typeof data !== 'object') return {}
-  const d = data as SessionResult
-  const cred = (d.result?.credentials ?? d.credentials)?.[0]
-  return {
-    signatureValid: cred?.signatureValid,
-    deviceAuthVerified: cred?.deviceAuthVerified,
-  }
+  return data as Record<string, unknown>
 }
 
 const PRIORITY_FIELDS = ['given_name', 'family_name', 'birth_date', 'document_number', 'issuing_country', 'issue_date', 'expiry_date']
@@ -64,7 +38,8 @@ interface Props {
 
 export function PassengerProfile({ email, data, onSignOut }: Props) {
   const claims = extractClaims(data)
-  const { signatureValid, deviceAuthVerified } = extractValidity(data)
+  const signatureValid = undefined
+  const deviceAuthVerified = undefined
 
   const givenName = claims['given_name'] ? String(claims['given_name']) : ''
   const familyName = claims['family_name'] ? String(claims['family_name']) : ''

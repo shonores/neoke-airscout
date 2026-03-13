@@ -7,9 +7,10 @@ interface Props {
   config: Config
   onConfigChange: (c: Config) => void
   onSubmit: (email: string) => void
+  hideConfig?: boolean
 }
 
-export function EmailStep({ config, onConfigChange, onSubmit }: Props) {
+export function EmailStep({ config, onConfigChange, onSubmit, hideConfig = false }: Props) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
 
@@ -20,8 +21,8 @@ export function EmailStep({ config, onConfigChange, onSubmit }: Props) {
       setError('Please enter a valid email address.')
       return
     }
-    if (!config.nodeId || !config.apiKey) {
-      setError('Please configure the Node ID and API Key in settings below.')
+    if (!config.ceApiKey) {
+      setError('Please configure the CE API Key in settings below.')
       return
     }
     setError('')
@@ -78,7 +79,7 @@ export function EmailStep({ config, onConfigChange, onSubmit }: Props) {
         </button>
       </form>
 
-      <ConfigPanel config={config} onChange={onConfigChange} />
+      {!hideConfig && <ConfigPanel config={config} onChange={onConfigChange} />}
     </motion.div>
   )
 }
