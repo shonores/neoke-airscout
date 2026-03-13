@@ -1,4 +1,12 @@
-export type AppState = 'home' | 'verifying' | 'success' | 'error'
+export type AppState =
+  | 'search'
+  | 'results'
+  | 'passenger_info'
+  | 'booking_verifying'
+  | 'booking_confirmed'
+  | 'checkin_verifying'
+  | 'checked_in'
+  | 'error'
 
 export interface Config {
   ceUrl: string
@@ -11,4 +19,30 @@ export interface VerifyResponse {
   reason?: string
   requestId?: string
   nodeId?: string
+}
+
+export interface Flight {
+  id: string
+  fromCode: string
+  from: string
+  toCode: string
+  to: string
+  departTime: string
+  arrivalTime: string
+  duration: string
+  stops: string
+  price: number
+}
+
+export interface PassengerData {
+  firstName: string
+  lastName: string
+  email: string
+  birthDate?: string
+}
+
+export interface SearchQuery {
+  from: string
+  to: string
+  date: string
 }
