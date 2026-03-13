@@ -31,7 +31,7 @@ export function CheckInStep() {
         <p className="text-[15px] text-[#6d6b7e] mt-2 leading-relaxed max-w-[320px]">
           {showWallet
             ? 'Open your Neoke wallet and approve the check-in request.'
-            : 'We are using your information from the wallet.'}
+            : 'Calling your wallet to retrieve your information…'}
         </p>
       </div>
 
