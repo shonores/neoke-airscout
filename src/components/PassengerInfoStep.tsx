@@ -70,6 +70,7 @@ export function PassengerInfoStep({ initialData, onBack, onContinue, onRequestWa
     }
 
     if (result.action === 'auto_executed' || result.action === 'approved') {
+      console.log('[AirScout] wallet claims:', JSON.stringify(result.claims, null, 2))
       const ex = extractFromClaims(result.claims ?? {})
       if (ex.firstName)   setFirstName(ex.firstName)
       if (ex.lastName)    setLastName(ex.lastName)
@@ -190,7 +191,7 @@ export function PassengerInfoStep({ initialData, onBack, onContinue, onRequestWa
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
               placeholder="e.g. Alex"
-              autoComplete="given-name"
+              autoComplete="off"
               className="border border-[#e4e4e7] rounded-2xl px-4 py-3 text-[15px] text-[#28272e]
                          focus:outline-none focus:border-[#3f54cc] focus:ring-2 focus:ring-[#3f54cc]/20"
             />
@@ -204,7 +205,7 @@ export function PassengerInfoStep({ initialData, onBack, onContinue, onRequestWa
               value={lastName}
               onChange={e => setLastName(e.target.value)}
               placeholder="e.g. Scout"
-              autoComplete="family-name"
+              autoComplete="off"
               className="border border-[#e4e4e7] rounded-2xl px-4 py-3 text-[15px] text-[#28272e]
                          focus:outline-none focus:border-[#3f54cc] focus:ring-2 focus:ring-[#3f54cc]/20"
             />
