@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { AppState, Config, Flight, PassengerData, SearchQuery, VerifyResponse } from './types'
 import { verify } from './api/verify'
+import { issueCredential } from './api/issue'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { SearchStep } from './components/SearchStep'
@@ -139,6 +140,24 @@ export default function App() {
 
     if (result.action === 'auto_executed' || result.action === 'approved') {
       setAppState('checked_in')
+      // Issue boarding pass credential to the passenger's wallet (fire-and-forget)
+      if (selectedFlight && passengerData?.email) {
+        issueCredential(
+          config.ceUrl,
+          config.ceApiKey,
+          passengerData.email,
+          'BoardingPass',
+          {
+            passengerName: `${passengerData.firstName} ${passengerData.lastName}`,
+            flightNumber: selectedFlight.id,
+            origin: selectedFlight.fromCode,
+            destination: selectedFlight.toCode,
+            departureTime: selectedFlight.departTime,
+            arrivalTime: selectedFlight.arrivalTime,
+            ...(passengerData.nationality ? { nationality: passengerData.nationality } : {}),
+          },
+        ).catch(() => { /* boarding pass issuance is best-effort */ })
+      }
       return
     }
 

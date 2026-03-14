@@ -20,6 +20,13 @@ export interface VerifyResponse {
   nodeId?: string
 }
 
+export interface IssueResponse {
+  action: 'auto_executed' | 'queued' | 'rejected' | 'error'
+  reason?: string
+  requestId?: string
+  nodeId?: string
+}
+
 export interface Flight {
   id: string
   fromCode: string
