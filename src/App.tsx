@@ -141,11 +141,16 @@ export default function App() {
     if (result.action === 'auto_executed' || result.action === 'approved') {
       setAppState('checked_in')
       // Issue boarding pass credential to the passenger's wallet (fire-and-forget)
-      if (selectedFlight && passengerData?.email) {
+      // Prefer the verified nodeId from the CE result — avoids a second directory lookup.
+      // Fall back to email if nodeId isn't in the result.
+      const issueTarget = result.nodeId
+        ? { nodeId: result.nodeId }
+        : passengerData?.email ? { email: passengerData.email } : null
+      if (selectedFlight && issueTarget && passengerData) {
         issueCredential(
           config.ceUrl,
           config.ceApiKey,
-          passengerData.email,
+          issueTarget,
           'BoardingPass',
           {
             passengerName: `${passengerData.firstName} ${passengerData.lastName}`,
