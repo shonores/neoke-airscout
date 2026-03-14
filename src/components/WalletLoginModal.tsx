@@ -4,7 +4,7 @@ import type { VerifyResponse } from '../types'
 
 interface Props {
   onVerify: (email: string) => Promise<{ result?: VerifyResponse; error?: string }>
-  onSuccess: (claims: Record<string, unknown>, email: string) => void
+  onSuccess: (claims: Record<string, unknown>, email: string, nodeId?: string) => void
   onClose: () => void
 }
 
@@ -33,7 +33,7 @@ export function WalletLoginModal({ onVerify, onSuccess, onClose }: Props) {
     }
 
     if (result.action === 'auto_executed' || result.action === 'approved') {
-      onSuccess(result.claims ?? {}, email)
+      onSuccess(result.claims ?? {}, email, result.nodeId)
       return
     }
 

@@ -78,6 +78,7 @@ export default function App() {
   // Wallet login session (from header login button)
   const [isLoggedIn,       setIsLoggedIn]       = useState(false)
   const [walletLoginData,  setWalletLoginData]  = useState<Partial<PassengerData> | null>(null)
+  const [walletNodeId,     setWalletNodeId]     = useState<string | undefined>(undefined)
   const [showLoginModal,   setShowLoginModal]   = useState(false)
 
   // Bound verify call — reused across wallet fill, header login, and check-in
@@ -92,13 +93,15 @@ export default function App() {
     setError('')
     setIsLoggedIn(false)
     setWalletLoginData(null)
+    setWalletNodeId(undefined)
   }
 
   // --- Header wallet login ---
-  const handleHeaderLoginSuccess = (claims: Record<string, unknown>, email: string) => {
+  const handleHeaderLoginSuccess = (claims: Record<string, unknown>, email: string, nodeId?: string) => {
     const extracted = extractPassengerFromClaims(claims)
     const data: Partial<PassengerData> = { ...extracted, email: extracted.email || email }
     setWalletLoginData(data)
+    setWalletNodeId(nodeId)
     setIsLoggedIn(true)
     setShowLoginModal(false)
   }
@@ -143,8 +146,9 @@ export default function App() {
       // Issue boarding pass credential to the passenger's wallet (fire-and-forget)
       // Prefer the verified nodeId from the CE result — avoids a second directory lookup.
       // Fall back to email if nodeId isn't in the result.
-      const issueTarget = result.nodeId
-        ? { nodeId: result.nodeId }
+      const issueTarget = walletNodeId
+        ? { nodeId: walletNodeId }
+        : result.nodeId ? { nodeId: result.nodeId }
         : passengerData?.email ? { email: passengerData.email } : null
       if (selectedFlight && issueTarget && passengerData) {
         issueCredential(
