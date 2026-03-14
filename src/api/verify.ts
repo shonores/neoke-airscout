@@ -8,7 +8,7 @@ export async function verify(
   email: string,
   /** Either a credentialType preset ID or a templateId (prefixed with 'template:'). */
   credentialTypeOrTemplateId = 'mdoc-photoid-full',
-  opts?: { transactionData?: string[]; verifierName?: string },
+  opts?: { transactionData?: string[]; verifierName?: string; logoUri?: string },
 ): Promise<{ result?: VerifyResponse; error?: string }> {
   const url = `${ceUrl || DEFAULT_CE_URL}/v1/verify`
   const controller = new AbortController()
@@ -24,6 +24,7 @@ export async function verify(
     ...bodyPayload,
     ...(opts?.transactionData?.length ? { transactionData: opts.transactionData } : {}),
     ...(opts?.verifierName ? { verifierName: opts.verifierName } : {}),
+    ...(opts?.logoUri ? { logoUri: opts.logoUri } : {}),
   }
 
   try {

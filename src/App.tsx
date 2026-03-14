@@ -14,6 +14,9 @@ import { CheckedInStep } from './components/CheckedInStep'
 import { ErrorState } from './components/ErrorState'
 import { WalletLoginModal } from './components/WalletLoginModal'
 
+const AIRSCOUT_LOGO_URI =
+  "data:image/svg+xml,%3Csvg%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%233f54cc%22%2F%3E%3Cpath%20d%3D%22M44%2020L20%2032l6%203%202%209%205-5%208%203%203-22z%22%20fill%3D%22white%22%2F%3E%3C%2Fsvg%3E"
+
 const BAKED_CE_URL     = import.meta.env['VITE_AIRSCOUT_CE_URL']     ?? ''
 const BAKED_CE_API_KEY = import.meta.env['VITE_AIRSCOUT_CE_API_KEY'] ?? ''
 const BAKED_CREDENTIAL_TYPE =
@@ -85,12 +88,14 @@ export default function App() {
   const runVerifyForBooking = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
     verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
       verifierName: 'AirScout Airlines',
+      logoUri: AIRSCOUT_LOGO_URI,
       transactionData: ['Prefill your booking details from your travel document'],
     })
 
   const runVerifyForCheckIn = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
     verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
       verifierName: 'AirScout Airlines',
+      logoUri: AIRSCOUT_LOGO_URI,
       transactionData: ['Get you ready to travel — verify your identity to proceed to check-in'],
     })
 

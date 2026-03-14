@@ -1,6 +1,9 @@
 import type { GetToken, CreateRequestResponse } from '../types'
 import { deriveNodeHost } from './auth'
 
+const AIRSCOUT_LOGO_URI =
+  "data:image/svg+xml,%3Csvg%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%233f54cc%22%2F%3E%3Cpath%20d%3D%22M44%2020L20%2032l6%203%202%209%205-5%208%203%203-22z%22%20fill%3D%22white%22%2F%3E%3C%2Fsvg%3E"
+
 // mDOC Photo ID — Full Profile (matches neoke-test-verifier preset 'mdoc-photoid-full')
 const NS = 'org.iso.23220.1'
 const claim = (name: string) => ({ path: [NS, name] })
@@ -29,6 +32,7 @@ export async function createPhotoIdRequest(
   nodeId: string,
   getToken: GetToken,
   callbackUrl: string,
+  opts?: { transactionData?: string[]; clientName?: string; logoUri?: string },
 ): Promise<{ result?: CreateRequestResponse; error?: string }> {
   const tokenResult = await getToken()
   if ('error' in tokenResult) return { error: tokenResult.error }
@@ -47,6 +51,11 @@ export async function createPhotoIdRequest(
         responseMode: 'direct_post',
         dcqlQuery: PHOTO_ID_DCQL_QUERY,
         trustProfiles: ['EU Trust Framework'],
+        clientMetadata: {
+          client_name: opts?.clientName ?? 'AirScout Airlines',
+          logo_uri: opts?.logoUri ?? AIRSCOUT_LOGO_URI,
+        },
+        ...(opts?.transactionData?.length ? { transactionData: opts.transactionData } : {}),
         onComplete: {
           url: callbackUrl,
           dataMode: 'full',
