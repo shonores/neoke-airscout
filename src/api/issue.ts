@@ -10,6 +10,7 @@ export async function issueCredential(
   credentialType: string,
   claims: Record<string, unknown>,
   issuerNodeId = 'airscout',
+  issuerNameHint?: string,
 ): Promise<{ result?: IssueResponse; error?: string }> {
   const url = `${ceUrl || DEFAULT_CE_URL}/v1/issue`
   const targetField = 'nodeId' in target ? { nodeId: target.nodeId } : { to: target.email }
@@ -21,7 +22,7 @@ export async function issueCredential(
         Authorization: `ApiKey ${ceApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...targetField, credentialType, claims, issuerNodeId }),
+      body: JSON.stringify({ ...targetField, credentialType, claims, issuerNodeId, ...(issuerNameHint ? { issuerNameHint } : {}) }),
     })
 
     const raw = await res.text()

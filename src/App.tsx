@@ -179,6 +179,8 @@ export default function App() {
             arrivalTime: selectedFlight.arrivalTime,
             ...(passengerData.nationality ? { nationality: passengerData.nationality } : {}),
           },
+          'airscout',
+          'AirScout Airlines',
         ).catch(() => { /* boarding pass issuance is best-effort */ })
       }
       return
