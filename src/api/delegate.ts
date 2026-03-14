@@ -9,26 +9,31 @@ export interface DelegateInput {
   ttlMinutes?: number
 }
 
-export interface DelegateResult {
-  grantToken: string
+/** Returned immediately after POST /v1/consent/delegate */
+export interface DelegationRequest {
+  delegationId: string
+  status: 'pending_approval'
+  expiresAt: string
+}
+
+/** Returned when polling GET /v1/consent/delegate/:id */
+export interface DelegationStatus {
+  delegationId: string
+  status: 'pending_approval' | 'approved' | 'rejected' | 'expired'
+  grantToken?: string
   expiresAt: string
 }
 
 /**
- * Calls POST /v1/consent/delegate on the Consent Engine.
- *
- * Creates a delegation grant: a short-lived, single-use opaque token that
- * allows the recipient service to retrieve the user's verified claims without
- * ever needing their email address before consent is granted.
- *
- * The caller (AirScout) must have obtained the user's explicit consent before
- * calling this — typically by showing a consent modal with the fields listed.
+ * Step 1 — Initiates a wallet-centric delegation request.
+ * Returns immediately with status:'pending_approval'. The user must approve
+ * in their wallet before a grant token is issued.
  */
-export async function createDelegationGrant(
+export async function requestDelegation(
   ceUrl: string,
   ceApiKey: string,
   input: DelegateInput,
-): Promise<{ result?: DelegateResult; error?: string }> {
+): Promise<{ request?: DelegationRequest; error?: string }> {
   const url = `${ceUrl || DEFAULT_CE_URL}/v1/consent/delegate`
 
   try {
@@ -52,7 +57,34 @@ export async function createDelegationGrant(
     let parsed: unknown
     try { parsed = JSON.parse(raw) } catch { parsed = raw }
 
-    if (res.ok) return { result: parsed as DelegateResult }
+    if (res.ok) return { request: parsed as DelegationRequest }
+    return { error: `HTTP ${res.status}: ${raw}` }
+  } catch (e: unknown) {
+    return { error: String(e) }
+  }
+}
+
+/**
+ * Step 2 — Polls the delegation status once.
+ * Call repeatedly until status !== 'pending_approval'.
+ */
+export async function getDelegationStatus(
+  ceUrl: string,
+  ceApiKey: string,
+  delegationId: string,
+): Promise<{ status?: DelegationStatus; error?: string }> {
+  const url = `${ceUrl || DEFAULT_CE_URL}/v1/consent/delegate/${delegationId}`
+
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `ApiKey ${ceApiKey}` },
+    })
+
+    const raw = await res.text()
+    let parsed: unknown
+    try { parsed = JSON.parse(raw) } catch { parsed = raw }
+
+    if (res.ok) return { status: parsed as DelegationStatus }
     return { error: `HTTP ${res.status}: ${raw}` }
   } catch (e: unknown) {
     return { error: String(e) }

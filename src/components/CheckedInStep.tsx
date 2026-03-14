@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Flight, PassengerData } from '../types'
-import { createDelegationGrant } from '../api/delegate'
+import { requestDelegation, getDelegationStatus } from '../api/delegate'
 
 const HOTELSCOUT_URL =
   import.meta.env['VITE_HOTELSCOUT_URL'] ?? 'https://neoke-hotelscout.vercel.app'
@@ -51,8 +51,24 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
 
   const [showConsent, setShowConsent] = useState(false)
   const [includeBirthDate, setIncludeBirthDate] = useState(!!passenger.birthDate)
-  const [delegating, setDelegating] = useState(false)
+  // 'idle' | 'requesting' | 'waiting' | 'done'
+  const [delegatePhase, setDelegatePhase] = useState<'idle' | 'requesting' | 'waiting' | 'done'>('idle')
   const [delegateError, setDelegateError] = useState('')
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelledRef = useRef(false)
+
+  const delegating = delegatePhase === 'requesting' || delegatePhase === 'waiting'
+
+  const stopPolling = () => {
+    cancelledRef.current = true
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+  }
+
+  const handleCancel = () => {
+    stopPolling()
+    setDelegatePhase('idle')
+    setShowConsent(false)
+  }
 
   const handleBrowseHotels = () => {
     setDelegateError('')
@@ -60,10 +76,11 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
   }
 
   const handleConsentConfirm = async () => {
-    setDelegating(true)
+    setDelegatePhase('requesting')
     setDelegateError('')
+    cancelledRef.current = false
 
-    const { result, error } = await createDelegationGrant(CE_URL, CE_API_KEY, {
+    const { request, error } = await requestDelegation(CE_URL, CE_API_KEY, {
       userEmail: passenger.email,
       requesterService: 'airscout',
       recipientService: 'hotelscout',
@@ -72,21 +89,57 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
       ttlMinutes: 30,
     })
 
-    setDelegating(false)
-
-    if (error || !result) {
-      setDelegateError(error ?? 'Failed to create delegation grant. Please try again.')
+    if (error || !request) {
+      setDelegatePhase('idle')
+      setDelegateError(error ?? 'Failed to send approval request. Please try again.')
       return
     }
 
-    const paramObj: Record<string, string> = {
-      grant_token: result.grantToken,
-      destination: flight.to,
-      city_code: flight.toCode,
+    setDelegatePhase('waiting')
+
+    // Poll until user approves/rejects/expires in wallet
+    const poll = async () => {
+      if (cancelledRef.current) return
+
+      const { status, error: pollError } = await getDelegationStatus(CE_URL, CE_API_KEY, request.delegationId)
+
+      if (cancelledRef.current) return
+
+      if (pollError) {
+        setDelegatePhase('idle')
+        setDelegateError(pollError)
+        return
+      }
+
+      if (!status || status.status === 'pending_approval') {
+        // Keep polling every 3 seconds
+        pollTimerRef.current = setTimeout(poll, 3000)
+        return
+      }
+
+      if (status.status === 'approved' && status.grantToken) {
+        setDelegatePhase('done')
+        const paramObj: Record<string, string> = {
+          grant_token: status.grantToken,
+          destination: flight.to,
+          city_code: flight.toCode,
+        }
+        if (travelDate) paramObj.check_in = travelDate
+        const params = new URLSearchParams(paramObj)
+        window.location.href = `${HOTELSCOUT_URL}?${params.toString()}`
+        return
+      }
+
+      // rejected or expired
+      setDelegatePhase('idle')
+      setDelegateError(
+        status.status === 'rejected'
+          ? 'You declined the request in your wallet.'
+          : 'The approval window expired. Please try again.',
+      )
     }
-    if (travelDate) paramObj.check_in = travelDate
-    const params = new URLSearchParams(paramObj)
-    window.location.href = `${HOTELSCOUT_URL}?${params.toString()}`
+
+    poll()
   }
 
   return (
@@ -302,8 +355,8 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
               {/* Actions */}
               <div className="flex gap-3 pt-1">
                 <button
-                  onClick={() => setShowConsent(false)}
-                  disabled={delegating}
+                  onClick={handleCancel}
+                  disabled={delegatePhase === 'done'}
                   className="flex-1 py-3 rounded-2xl border border-[#e5e7eb] text-[14px] font-semibold text-[#6d6b7e] hover:bg-[#f9fafb] transition-colors disabled:opacity-50"
                 >
                   Cancel
@@ -313,13 +366,21 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
                   disabled={delegating}
                   className="flex-1 py-3 rounded-2xl bg-[#3f54cc] text-white text-[14px] font-bold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  {delegating ? (
+                  {delegatePhase === 'requesting' ? (
                     <>
                       <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="3" strokeOpacity="0.3" />
                         <path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round" />
                       </svg>
-                      Sharing…
+                      Sending…
+                    </>
+                  ) : delegatePhase === 'waiting' ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="3" strokeOpacity="0.3" />
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Waiting for wallet approval…
                     </>
                   ) : (
                     'Share & continue'
