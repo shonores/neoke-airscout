@@ -4,7 +4,7 @@ import type { Flight, PassengerData } from '../types'
 import { createDelegationGrant } from '../api/delegate'
 
 const HOTELSCOUT_URL =
-  import.meta.env['VITE_HOTELSCOUT_URL'] ?? 'http://localhost:5174'
+  import.meta.env['VITE_HOTELSCOUT_URL'] ?? 'https://neoke-hotelscout.vercel.app'
 const CE_URL =
   import.meta.env['VITE_AIRSCOUT_CE_URL'] ?? 'https://neoke-consent-engine.fly.dev'
 const CE_API_KEY =
@@ -41,10 +41,11 @@ const AISLE_SEATS = ['14C', '7C', '22C', '3C', '18C']
 interface Props {
   flight: Flight
   passenger: PassengerData
+  travelDate?: string
   onReset: () => void
 }
 
-export function CheckedInStep({ flight, passenger, onReset }: Props) {
+export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props) {
   const fullName = [passenger.firstName, passenger.lastName].filter(Boolean).join(' ') || 'Passenger'
   const seat = AISLE_SEATS[(parseInt(flight.id, 10) - 1) % AISLE_SEATS.length]
 
@@ -78,11 +79,13 @@ export function CheckedInStep({ flight, passenger, onReset }: Props) {
       return
     }
 
-    const params = new URLSearchParams({
+    const paramObj: Record<string, string> = {
       grant_token: result.grantToken,
       destination: flight.to,
       city_code: flight.toCode,
-    })
+    }
+    if (travelDate) paramObj.check_in = travelDate
+    const params = new URLSearchParams(paramObj)
     window.location.href = `${HOTELSCOUT_URL}?${params.toString()}`
   }
 

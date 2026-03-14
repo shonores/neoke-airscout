@@ -271,6 +271,7 @@ export default function App() {
                   key="checked-in"
                   flight={selectedFlight}
                   passenger={passengerData}
+                  travelDate={searchQuery?.date ?? ''}
                   onReset={handleReset}
                 />
               )}
