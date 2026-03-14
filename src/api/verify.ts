@@ -8,6 +8,7 @@ export async function verify(
   email: string,
   /** Either a credentialType preset ID or a templateId (prefixed with 'template:'). */
   credentialTypeOrTemplateId = 'mdoc-photoid-full',
+  opts?: { transactionData?: string[]; verifierName?: string },
 ): Promise<{ result?: VerifyResponse; error?: string }> {
   const url = `${ceUrl || DEFAULT_CE_URL}/v1/verify`
   const controller = new AbortController()
@@ -18,6 +19,13 @@ export async function verify(
     ? { to: email, templateId: credentialTypeOrTemplateId.slice('template:'.length) }
     : { to: email, credentialType: credentialTypeOrTemplateId }
 
+  // Merge optional opts
+  const finalPayload = {
+    ...bodyPayload,
+    ...(opts?.transactionData?.length ? { transactionData: opts.transactionData } : {}),
+    ...(opts?.verifierName ? { verifierName: opts.verifierName } : {}),
+  }
+
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -25,7 +33,7 @@ export async function verify(
         Authorization: `ApiKey ${ceApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(bodyPayload),
+      body: JSON.stringify(finalPayload),
       signal: controller.signal,
     })
 

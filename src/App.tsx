@@ -81,9 +81,18 @@ export default function App() {
   const [walletNodeId,     setWalletNodeId]     = useState<string | undefined>(undefined)
   const [showLoginModal,   setShowLoginModal]   = useState(false)
 
-  // Bound verify call — reused across wallet fill, header login, and check-in
-  const runVerify = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
-    verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE)
+  // Bound verify calls — context-specific opts for booking vs check-in
+  const runVerifyForBooking = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
+    verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
+      verifierName: 'AirScout Airlines',
+      transactionData: ['Prefill your booking details from your travel document'],
+    })
+
+  const runVerifyForCheckIn = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
+    verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
+      verifierName: 'AirScout Airlines',
+      transactionData: ['Get you ready to travel — verify your identity to proceed to check-in'],
+    })
 
   const handleReset = () => {
     setAppState('search')
@@ -130,7 +139,7 @@ export default function App() {
     setAppState('checkin_verifying')
 
     const startTime = Date.now()
-    const { result, error: err } = await runVerify(email)
+    const { result, error: err } = await runVerifyForCheckIn(email)
 
     const elapsed = Date.now() - startTime
     if (elapsed < 3000) await new Promise(r => setTimeout(r, 3000 - elapsed))
@@ -233,7 +242,7 @@ export default function App() {
                   initialData={walletLoginData ?? undefined}
                   onBack={() => setAppState('results')}
                   onContinue={handlePassengerContinue}
-                  onRequestWalletVerify={runVerify}
+                  onRequestWalletVerify={runVerifyForBooking}
                 />
               )}
 
@@ -279,7 +288,7 @@ export default function App() {
       {/* Header wallet login modal */}
       {showLoginModal && (
         <WalletLoginModal
-          onVerify={runVerify}
+          onVerify={runVerifyForBooking}
           onSuccess={handleHeaderLoginSuccess}
           onClose={() => setShowLoginModal(false)}
         />
