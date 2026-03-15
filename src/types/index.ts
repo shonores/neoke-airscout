@@ -27,6 +27,11 @@ export interface IssueResponse {
   nodeId?: string
 }
 
+/** CE structured error envelope — present on all non-2xx responses. Branch on error.code. */
+export interface CeApiError {
+  error: { code: string; message: string; requestId: string; timestamp: string }
+}
+
 export interface Flight {
   id: string
   fromCode: string

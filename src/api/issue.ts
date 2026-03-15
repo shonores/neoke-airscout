@@ -2,6 +2,18 @@ import type { IssueResponse } from '../types'
 
 const DEFAULT_CE_URL = 'https://neoke-consent-engine.fly.dev'
 
+function ceErrorMessage(parsed: unknown, raw: string, status: number): string {
+  if (parsed && typeof parsed === 'object') {
+    const err = (parsed as Record<string, unknown>).error
+    if (err && typeof err === 'object') {
+      const msg = (err as Record<string, unknown>).message
+      const code = (err as Record<string, unknown>).code
+      if (typeof msg === 'string') return code ? `[${code}] ${msg}` : msg
+    }
+  }
+  return `HTTP ${status}: ${raw}`
+}
+
 export async function issueCredential(
   ceUrl: string,
   ceApiKey: string,
@@ -30,7 +42,7 @@ export async function issueCredential(
     try { parsed = JSON.parse(raw) } catch { parsed = raw }
 
     if (res.ok) return { result: parsed as IssueResponse }
-    return { error: `HTTP ${res.status}: ${raw}` }
+    return { error: ceErrorMessage(parsed, raw, res.status) }
   } catch (e: unknown) {
     return { error: String(e) }
   }

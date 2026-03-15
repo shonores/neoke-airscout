@@ -1,5 +1,17 @@
 const DEFAULT_CE_URL = 'https://neoke-consent-engine.fly.dev'
 
+function ceErrorMessage(parsed: unknown, raw: string, status: number): string {
+  if (parsed && typeof parsed === 'object') {
+    const err = (parsed as Record<string, unknown>).error
+    if (err && typeof err === 'object') {
+      const msg = (err as Record<string, unknown>).message
+      const code = (err as Record<string, unknown>).code
+      if (typeof msg === 'string') return code ? `[${code}] ${msg}` : msg
+    }
+  }
+  return `HTTP ${status}: ${raw}`
+}
+
 export interface DelegateInput {
   userEmail: string
   requesterService: string
@@ -22,6 +34,41 @@ export interface DelegationStatus {
   status: 'pending_approval' | 'approved' | 'rejected' | 'expired'
   grantToken?: string
   expiresAt: string
+}
+
+/**
+ * Parameters passed to HotelScout via URL redirect after a delegation grant is approved.
+ * Both sides must agree on these param names — this type is the single source of truth.
+ * HotelScout's App.tsx parseUrlParams() must match these keys exactly.
+ */
+export interface DelegationRedirectParams {
+  /** Opaque one-time grant token from CE. */
+  grantToken: string
+  /** Hotel search destination name shown in HotelScout's search bar. */
+  destination?: string
+  /** IATA city code used for hotel search. */
+  cityCode?: string
+  /** ISO date string (YYYY-MM-DD) for check-in. */
+  checkIn?: string
+  /** Pre-filled email (informational only — not used for CE verification). */
+  email?: string
+}
+
+/**
+ * Builds the redirect URL that AirScout sends to HotelScout after a delegation grant is approved.
+ * Centralising construction here ensures param names stay consistent with HotelScout's parser.
+ */
+export function buildDelegationRedirectUrl(
+  hotelScoutBaseUrl: string,
+  params: DelegationRedirectParams,
+): string {
+  const url = new URL(hotelScoutBaseUrl)
+  url.searchParams.set('grant_token', params.grantToken)
+  if (params.destination) url.searchParams.set('destination', params.destination)
+  if (params.cityCode) url.searchParams.set('city_code', params.cityCode)
+  if (params.checkIn) url.searchParams.set('check_in', params.checkIn)
+  if (params.email) url.searchParams.set('email', params.email)
+  return url.toString()
 }
 
 /**
@@ -58,7 +105,7 @@ export async function requestDelegation(
     try { parsed = JSON.parse(raw) } catch { parsed = raw }
 
     if (res.ok) return { request: parsed as DelegationRequest }
-    return { error: `HTTP ${res.status}: ${raw}` }
+    return { error: ceErrorMessage(parsed, raw, res.status) }
   } catch (e: unknown) {
     return { error: String(e) }
   }
@@ -85,7 +132,7 @@ export async function getDelegationStatus(
     try { parsed = JSON.parse(raw) } catch { parsed = raw }
 
     if (res.ok) return { status: parsed as DelegationStatus }
-    return { error: `HTTP ${res.status}: ${raw}` }
+    return { error: ceErrorMessage(parsed, raw, res.status) }
   } catch (e: unknown) {
     return { error: String(e) }
   }
