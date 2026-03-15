@@ -123,6 +123,7 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
           grant_token: status.grantToken,
           destination: flight.to,
           city_code: flight.toCode,
+          email: passenger.email,
         }
         if (travelDate) paramObj.check_in = travelDate
         const params = new URLSearchParams(paramObj)
