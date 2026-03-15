@@ -1,5 +1,6 @@
 import type { GetToken, CreateRequestResponse } from '../types'
 import { deriveNodeHost } from './auth'
+import { AIRSCOUT_SERVICE_NAME } from '../serviceConfig'
 
 const AIRSCOUT_LOGO_URI =
   "data:image/svg+xml,%3Csvg%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%233f54cc%22%2F%3E%3Cpath%20d%3D%22M44%2020L20%2032l6%203%202%209%205-5%208%203%203-22z%22%20fill%3D%22white%22%2F%3E%3C%2Fsvg%3E"
@@ -52,7 +53,7 @@ export async function createPhotoIdRequest(
         dcqlQuery: PHOTO_ID_DCQL_QUERY,
         trustProfiles: ['EU Trust Framework'],
         clientMetadata: {
-          client_name: opts?.clientName ?? 'AirScout Airlines',
+          client_name: opts?.clientName ?? AIRSCOUT_SERVICE_NAME,
           logo_uri: opts?.logoUri ?? AIRSCOUT_LOGO_URI,
         },
         ...(opts?.transactionData?.length ? { transactionData: opts.transactionData } : {}),

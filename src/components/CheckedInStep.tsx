@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Flight, PassengerData } from '../types'
 import { requestDelegation, getDelegationStatus } from '../api/delegate'
+import { AIRSCOUT_SERVICE_NAME, HOTELSCOUT_SERVICE_NAME } from '../serviceConfig'
 
 const HOTELSCOUT_URL =
   import.meta.env['VITE_HOTELSCOUT_URL'] ?? 'https://neoke-hotelscout.vercel.app'
@@ -13,8 +14,6 @@ const CREDENTIAL_TYPE =
   import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']
     ? `template:${import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']}`
     : (import.meta.env['VITE_AIRSCOUT_CREDENTIAL_TYPE'] ?? 'sdjwt-epassport-copy')
-const AIRSCOUT_SERVICE_NAME: string = import.meta.env['VITE_AIRSCOUT_SERVICE_NAME'] ?? 'AirScout Airlines'
-const HOTELSCOUT_SERVICE_NAME: string = import.meta.env['VITE_HOTELSCOUT_SERVICE_NAME'] ?? 'HotelScout'
 
 const UPSELLS_EXTRA = [
   {

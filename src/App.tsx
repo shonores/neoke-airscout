@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import type { AppState, Config, Flight, PassengerData, SearchQuery, VerifyResponse } from './types'
 import { verify } from './api/verify'
 import { issueCredential } from './api/issue'
+import { AIRSCOUT_SERVICE_NAME, AIRSCOUT_NODE_ID } from './serviceConfig'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { SearchStep } from './components/SearchStep'
@@ -87,14 +88,14 @@ export default function App() {
   // Bound verify calls — context-specific opts for booking vs check-in
   const runVerifyForBooking = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
     verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
-      verifierName: 'AirScout Airlines',
+      verifierName: AIRSCOUT_SERVICE_NAME,
       logoUri: AIRSCOUT_LOGO_URI,
       transactionData: ['Prefill your booking details from your travel document'],
     })
 
   const runVerifyForCheckIn = (email: string): Promise<{ result?: VerifyResponse; error?: string }> =>
     verify(config.ceUrl, config.ceApiKey, email, BAKED_CREDENTIAL_TYPE, {
-      verifierName: 'AirScout Airlines',
+      verifierName: AIRSCOUT_SERVICE_NAME,
       logoUri: AIRSCOUT_LOGO_URI,
       transactionData: ['Get you ready to travel — verify your identity to proceed to check-in'],
     })
@@ -179,8 +180,8 @@ export default function App() {
             arrivalTime: selectedFlight.arrivalTime,
             ...(passengerData.nationality ? { nationality: passengerData.nationality } : {}),
           },
-          'airscout',
-          'AirScout Airlines',
+          AIRSCOUT_NODE_ID,
+          AIRSCOUT_SERVICE_NAME,
         ).catch(() => { /* boarding pass issuance is best-effort */ })
       }
       return

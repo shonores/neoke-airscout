@@ -7,9 +7,11 @@ interface ImportMetaEnv {
   readonly VITE_AIRSCOUT_TEMPLATE_ID?: string
   /** Preset credential type ID (e.g. sdjwt-epassport-copy) — used when TEMPLATE_ID is not set */
   readonly VITE_AIRSCOUT_CREDENTIAL_TYPE?: string
-  /** Display name sent to CE as requesterService — defaults to "AirScout Airlines" */
+  /** Display name for AirScout sent to CE (verifierName, requesterService, issuerName) — defaults to "AirScout Airlines" */
   readonly VITE_AIRSCOUT_SERVICE_NAME?: string
-  /** Display name sent to CE as recipientService — defaults to "HotelScout" */
+  /** Node ID used when issuing credentials as AirScout — defaults to "airscout" */
+  readonly VITE_AIRSCOUT_NODE_ID?: string
+  /** Display name for HotelScout sent to CE as recipientService — defaults to "HotelScout" */
   readonly VITE_HOTELSCOUT_SERVICE_NAME?: string
 }
 
