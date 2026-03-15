@@ -13,6 +13,8 @@ const CREDENTIAL_TYPE =
   import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']
     ? `template:${import.meta.env['VITE_AIRSCOUT_TEMPLATE_ID']}`
     : (import.meta.env['VITE_AIRSCOUT_CREDENTIAL_TYPE'] ?? 'sdjwt-epassport-copy')
+const AIRSCOUT_SERVICE_NAME: string = import.meta.env['VITE_AIRSCOUT_SERVICE_NAME'] ?? 'AirScout Airlines'
+const HOTELSCOUT_SERVICE_NAME: string = import.meta.env['VITE_HOTELSCOUT_SERVICE_NAME'] ?? 'HotelScout'
 
 const UPSELLS_EXTRA = [
   {
@@ -82,8 +84,8 @@ export function CheckedInStep({ flight, passenger, travelDate, onReset }: Props)
 
     const { request, error } = await requestDelegation(CE_URL, CE_API_KEY, {
       userEmail: passenger.email,
-      requesterService: 'airscout',
-      recipientService: 'hotelscout',
+      requesterService: AIRSCOUT_SERVICE_NAME,
+      recipientService: HOTELSCOUT_SERVICE_NAME,
       credentialTypeId: CREDENTIAL_TYPE,
       purpose: 'Hotel booking pre-fill — share verified identity with HotelScout',
       ttlMinutes: 30,
